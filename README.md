@@ -1,4 +1,0 @@
-ilang
-=====
-
-Image Inference Language
