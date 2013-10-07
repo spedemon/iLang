@@ -3,3 +3,7 @@
 *.txt~
 build/
 _trial_temp/
+ilang/examples/a_random_number.txt
+ilang/examples/ilang_graph.html
+ilang/examples/ilang_graph_data.js
+ilang/examples/d3.v3.min.js
