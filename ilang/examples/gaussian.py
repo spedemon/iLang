@@ -6,61 +6,41 @@
 
 
 from ilang.Graphs import Dependence, ProbabilisticGraphicalModel
-from ilang.Samplers import AutoSampler
+from ilang.Models import MultivariateGaussian 
+from ilang.Samplers import Sampler
 from ilang.Tracers import RamTracer
 from ilang.Display import MatplotlibDisplay
 import numpy
 
-# Define the model: 
-
-class Gaussian(Dependence): 
-    def init(self): 
-        pass 
-
-    def variables(self): 
-        return {'x':'continuous','mu':'continuous','cov':'continuous'} 
-
-    def dependencies(self): 
-        return [['mu','x','directed'],['cov','x','directed']] 
-
-    def log_conditional_probability_x(self): 
-        return 0 
-
-    def log_conditional_probability_gradient_x(self): 
-        return numpy.zeros([100,1])
-
-    def log_conditional_probability_mu(self): 
-        return 0 
-
-    def log_conditional_probability_gradient_mu(self): 
-        return numpy.zeros([100,1])
-        
-    def sample_conditional_probability_sigma(self): 
-        return 0
 
 
-# Define the probabilistic graphical model: 
+
+# Define the model 
+ndim = 10
+model = MultivariateGaussian('gaussian') 
+
+# Build the graph 
+dag = ProbabilisticGraphicalModel(['x','mu','cov']) 
+dag.set_nodes_given(['mu','cov'], True) 
+dag.add_dependence(model,{'x':'x','mu':'mu','cov':'cov'}) 
+
+# Initialize the nodes of the graph
+dag.set_node_value('x',numpy.ones((1,ndim))) 
+dag.set_node_value('mu',numpy.zeros((1,ndim)))
+dag.set_node_value('cov',numpy.eye(ndim)) 
+
+# Initialise sampler, tracer, display 
+sampler = Sampler(dag) 
+tracer = RamTracer(sampler)   
+display = MatplotlibDisplay(tracer) 
+
+# Sample 
+sampler.sample(1000,trace=False) 
+#display.plot('mu') 
+#display.plot('sigma') 
 
 
-if __name__ == "__main__": 
-    # Define the model 
-    model = Gaussian('Gaussian')
-    dag = ProbabilisticGraphicalModel(['x','mu','cov']) 
-    dag.set_nodes_given(['mu','cov'], True) 
-    dag.add_dependence(model,{'x':'x','mu':'mu','cov':'cov'}) 
-    dag.webdisplay(background=True) 
+if __name__=="__main__": 
+    dag.webdisplay(background=False) 
 
-    # Initialise sampler
-    dag.set_node_value('x',numpy.ones((1,ndim))) 
-    dag.set_node_value('mu',numpy.zeros(1,ndim))
-    dag.set_node_value('cov',numpy.eye(numpy.ones(1,ndim)))  
-    sampler = AutoSampler(dag) 
-    tracer = RamTracer(sampler)   
-    display = MatplotlibDisplay(sampler) 
-    
-    # Sample 
-    sampler.sample(1000,trace=False) 
-#    display.plot('mu') 
-#    display.plot('sigma') 
-    
-    import time; time.sleep(5) 
+

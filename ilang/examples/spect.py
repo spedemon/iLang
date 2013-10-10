@@ -6,87 +6,41 @@
 
 
 from ilang.Graphs import Dependence, ProbabilisticGraphicalModel
-from ilang.Samplers import AutoSampler
+from ilang.Models import Poisson, Smoothness 
+from ilang.Samplers import Sampler
 from ilang.Tracers import RamTracer
 from ilang.Display import MatplotlibDisplay
-
-
-# Define the observation model: 
-
-class SpectPoisson(Dependence): 
-    def init(self): 
-        pass 
-
-    def variables(self): 
-        return {'lambda':'continuous','alpha':'continuous','z':'discrete'} 
-
-    def dependencies(self): 
-        return [['lambda','z','directed'],['alpha','z','directed']]
-
-    def log_conditional_probability_lambda(self): 
-        return 0 
-
-    def log_conditional_probability_gradient_lambda(self): 
-        return numpy.zeros([100,1])
-
-    def log_conditional_probability_alpha(self): 
-        return 0 
-
-    def log_conditional_probability_gradient_alpha(self): 
-        return numpy.zeros([100,1])
-        
-    def sample_conditional_probability_counts(self): 
-        return 0
-
-
-# Define the prior models
-
-class Smoothing(Dependence): 
-    def init(self): 
-        pass
-
-    def variables(self): 
-        return {'x':'continuous','beta':'continuous'}
-        
-    def dependencies(self): 
-        return [['beta','x','directed']] 
-
-    def log_conditional_probability_x(self): 
-        return 0
-
-    def log_conditional_probability_gradient_x(self): 
-        return 0
-
-    def log_conditional_probability_beta(self): 
-        return 0
-
-    def log_conditional_probability_gradient_beta(self): 
-        return 0
+import numpy
 
 
 
-# Define the probabilistic graphical model: 
+# Define the model components 
+observation = Poisson('SPECT')
+prior_activity = Smoothness('Smoothing_Activity') 
+prior_attenuation = Smoothness('Smoothing_Attenuation')  
 
-def define_graph(): 
-    observation = SpectPoisson('SPECT-Poisson')
-    prior_activity = Smoothing('Smoothing_Activity') 
-    prior_attenuation = Smoothing('Smoothing_Attenuation')  
-    dag = ProbabilisticGraphicalModel(['activity','attenuation','counts','smoothing-activity','smoothing-attenuation']) 
-    dag.set_nodes_given(['counts','smoothing-activity','smoothing-attenuation'], True)
-    dag.add_dependence(observation,{'lambda':'activity','alpha':'attenuation','z':'counts'})
-    dag.add_dependence(prior_activity,{'x':'activity','beta':'smoothing-activity'}) 
-    dag.add_dependence(prior_attenuation,{'x':'attenuation','beta':'smoothing-attenuation'}) 
-    return dag 
+# Build the graph 
+dag = ProbabilisticGraphicalModel(['activity','attenuation','counts','smoothing-activity','smoothing-attenuation']) 
+dag.set_nodes_given(['counts','smoothing-activity','smoothing-attenuation'], True)
+dag.add_dependence(observation,{'lambda':'activity','alpha':'attenuation','z':'counts'})
+dag.add_dependence(prior_activity,{'x':'activity','beta':'smoothing-activity'}) 
+dag.add_dependence(prior_attenuation,{'x':'attenuation','beta':'smoothing-attenuation'}) 
+
+# Initialize the nodes of the graph   
+dag.set_node_value('activity',numpy.ones((10,10)))
+
+# Instantiate the sampler, tracer and display 
+sampler = Sampler(dag)
+tracer = RamTracer(sampler)  
+display = MatplotlibDisplay(tracer) 
+
+# Sample 
+sampler.sample(1000,trace=False) 
+display.imagesc_node('activity')
 
 
-if __name__ == "__main__": 
-    dag = define_graph() 
+
+if __name__=="__main__": 
     dag.webdisplay(background=False) 
-    
-    sampler = AutoSampler(dag)
-    tracer = RamTracer(sampler)  
-    display = MatplotlibDisplay(sampler) 
-    
-    sampler.sample(1000,trace=False) 
-    display.imagesc('activity')
-     
+
+

@@ -23,3 +23,16 @@ class InconsistentGraph(Exception):
         self.value = value
     def __str__(self):
         return repr("Parameter error: "+str(self.value))        
+        
+class NotInitialized(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr("Not initialized: "+str(self.value)) 
+
+class NoCompatibleSampler(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr("Not compatible sampler: "+str(self.value)) 
+

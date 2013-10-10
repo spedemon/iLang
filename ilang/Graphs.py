@@ -7,8 +7,8 @@
 
 __all__ = ['Node','Dependence','ProbabilisticGraphicalModel']
 
-from exceptions import UnexpectedParameterType, ParameterError
-from verbose import print_important, print_runtime, print_debug
+from ilang.exceptions import *
+from ilang.verbose import *  
 import numpy
         
 data_types = ['continuous','discrete']
@@ -17,12 +17,19 @@ def set_data_type(self,node,data_type):
     if data_type in data_types: 
         node.data_type = data_type
     else: 
-        raise ParameterError("Unknown data_type %s. Known data types are %s."%(str(data_type),data_types)) 
+        raise ParameterError("Unknown data_type '%s'. Known data types are %s."%(str(data_type),data_types)) 
 
 
 
 
-
+def name(obj): 
+    if hasattr(obj,'get_name'): 
+        return obj.get_name()
+    else: 
+        return str(obj)
+ 
+        
+        
 class NodeContainer(): 
     """Represents the node of a Dependence. It contains the information relative to a node, 
     necessary in order to define the Dependence. The NodeContainer is then attached to a 
@@ -76,12 +83,12 @@ class NodeContainer():
             self.set_data_type(node.data_type)
             self.__attach_to_node(node) 
         else:
-            raise InconsistentGraph("Data type mismatch: node %s and node container %s have different data types (%s and %s). "%(repr(node),repr(self),node.data_type,self.data_type) )
+            raise InconsistentGraph("Data type mismatch: node '%s' and node container '%s' have different data types ('%s' and '%s'). "%(repr(node),repr(self),node.data_type,self.data_type) )
         return True
 
     def __attach_to_node(self,node): 
         if self.has_attached_node(): 
-            print_important("Detaching node container from node %s and attaching to node %s. "%(repr(self.attached_node),repr(node)) )
+            print_important("Detaching node container from node '%s' and attaching to node '%s'. "%(repr(self.attached_node),repr(node)) )
         self.attached_node = node
 
     def detach_from_node(self): 
@@ -124,7 +131,7 @@ class Dependence():
         """Attach the dependence object to the nodes of a ProbabilisticGraphicalModel. """
         for variable_name in links.keys(): 
             if not self.has_variable_named(variable_name): 
-                raise ParameterError("Dependence does not have a variable with name %s. (The variables are %s). "%(variable_name,self.get_variables_names()))
+                raise ParameterError("Dependence does not have a variable with name '%s'. (The variables are %s). "%(variable_name,self.get_variables_names()))
             if not isinstance(links[variable_name], Node): 
                 raise UnexpectedParameterType("Expected an instance of Node. ")
         for variable_name in links.keys(): 
@@ -153,7 +160,7 @@ class Dependence():
             raise ParameterError("The requested variable (%s) does not exist. The variables are %s."%(variable_name,self.get_variables_names()))
         node_container = self.get_node_container(variable_name)
         if not node_container.has_attached_node(): 
-            raise ParameterError("Variable %s is not attached to a node. "%variable_name)
+            raise ParameterError("Variable '%s' is not attached to a node. "%variable_name)
         return node_container.get_attached_node() 
         
     def get_variable_name_from_node(self,node): 
@@ -165,7 +172,7 @@ class Dependence():
             elif isinstance(node,'str'): 
                 if container.get_attached_node().name == node: 
                     return container.get_name() 
-        raise ParameterError("Node %s is not attached to any of the node containers. "%str(node)) 
+        raise ParameterError("node '%s' is not attached to any of the node containers. "%name(node)) 
         
     def has_variable_named(self,variable_name): 
         """Returns True if one of the variables of the dependence object has the given name. """
@@ -225,78 +232,78 @@ class Dependence():
         """Returns True if a method to compute the gradient of the log of the conditional 
         probability distribution associated to the given variable is defined. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         return hasattr(self,"log_conditional_probability_gradient_"+variable)
        
     def has_log_conditional_probability_hessian_variable(self,variable): 
         """Returns True if a method to compute the Hessian of the log of the conditional 
         probability distribution associated to the given variable is defined. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         return hasattr(self,"log_conditional_probability_hessian_"+variable)
 
     def has_log_conditional_probability_diagonal_hessian_variable(self,variable): 
         """Returns True if a method to compute the diagonal of the Hessian of the log of the conditional 
         probability distribution associated to the given variable is defined. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         return hasattr(self,"log_conditional_probability_diagonal_hessian_"+variable)
         
     def has_log_conditional_probability_variable(self,variable): 
         """Returns True if a method to compute the log of the conditional probability distribution 
         associated to the given variable is defined. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         return hasattr(self,"log_conditional_probability_"+variable) 
 
-    def has_sample_conditional_probability_variable(self,variable): 
+    def can_sample_conditional_probability_variable(self,variable): 
         """Returns True if a method to sample from the conditional probability of the given variable is defined. """ 
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         return hasattr(self,"sample_conditional_probability_"+variable)
            
     def get_log_conditional_probability_gradient_variable(self,variable): 
         """Returns the gradient of the log of the conditional probability distribution 
         associated to the given variable. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"log_conditional_probability_gradient_"+variable): 
-            raise ModelUndefined("The method to compute the gradient of the log conditional probability of %s is not defined. "%variable) 
+            raise ModelUndefined("The method to compute the gradient of the log conditional probability of '%s' is not defined. "%variable) 
         return eval("log_conditional_probability_gradient_"+variable+"()") #FIXME: eventually pass parameters
 
     def get_log_conditional_probability_hessian_variable(self,variable): 
         """Returns the Hessian of the log of the conditional probability distribution 
         associated to the given variable. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"log_conditional_probability_hessian_"+variable): 
-            raise ModelUndefined("The method to compute the Hessian of the log conditional probability of %s is not defined. "%variable) 
+            raise ModelUndefined("The method to compute the Hessian of the log conditional probability of '%s' is not defined. "%variable) 
         return eval("log_conditional_probability_hessian_"+variable+"()") #FIXME: eventually pass parameters
        
     def get_log_conditional_probability_hessian_variable(self,variable): 
         """Returns the diagonal of the Hessian of the log of the conditional probability distribution 
         associated to the given variable. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"log_conditional_probability_diagonal_hessian_"+variable): 
-            raise ModelUndefined("The method to compute the diagonal of the Hessian of the log conditional probability of %s is not defined. "%variable) 
+            raise ModelUndefined("The method to compute the diagonal of the Hessian of the log conditional probability of '%s' is not defined. "%variable) 
         return eval("log_conditional_probability_diagonal_hessian_"+variable+"()") #FIXME: eventually pass parameters
               
     def get_log_conditional_probability_variable(self,variable): 
         """Returns the log of the conditional probability distribution 
         associated to the given variable. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"log_conditional_probability_"+variable): 
-            raise ModelUndefined("The method to compute the log conditional probability of %s is not defined. "%variable) 
+            raise ModelUndefined("The method to compute the log conditional probability of '%s' is not defined. "%variable) 
         return eval("log_conditional_probability_"+variable+"()") #FIXME: eventually pass parameters
         
     def sample_conditional_probability_variable(self,variable): 
         """Samples from the conditional probability distribution of the given variable. """
         if not self.has_variable(variable): 
-            raise ParameterError("Variable %s does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"sample_conditional_probability_"+variable): 
-            raise ModelUndefined("The method to sample from the log conditional probability of %s is not defined. "%variable) 
+            raise ModelUndefined("The method to sample from the log conditional probability of '%s' is not defined. "%variable) 
         return eval("sample_conditional_probability_"+variable+"()") #FIXME: eventually pass parameters
         
 
@@ -305,35 +312,35 @@ class Dependence():
         """Returns True if a method to compute the gradient of the log of the conditional 
         probability distribution associated to the given node is defined. """
         if not self.has_node(node): 
-            raise ParameterError("node %s does not exist. The nodes are: %s. "%(str(node),self.get_nodes_names()))        
+            raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))        
         return self.has_log_conditional_probability_gradient_variable(self.variable_name_from_node(node)) 
        
     def has_log_conditional_probability_hessian_node(self,node): 
         """Returns True if a method to compute the Hessian of the log of the conditional 
         probability distribution associated to the given node is defined. """
         if not self.has_node(node): 
-            raise ParameterError("node %s does not exist. The nodes are: %s. "%(str(node),self.get_nodes_names()))
+            raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
         return self.has_log_conditional_probability_hessian_variable(self.variable_name_from_node(node)) 
 
     def has_log_conditional_probability_diagonal_hessian_node(self,node): 
         """Returns True if a method to compute the diagonal of the Hessian of the log of the conditional 
         probability distribution associated to the given node is defined. """
         if not self.has_node(node): 
-            raise ParameterError("node %s does not exist. The nodes are: %s. "%(str(node),self.get_nodes_names()))
+            raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
         return self.has_log_conditional_probability_diagonal_hessian_variable(self.variable_name_from_node(node)) 
         
     def has_log_conditional_probability_node(self,node): 
         """Returns True if a method to compute the log of the conditional probability distribution 
         associated to the given node is defined. """
         if not self.has_node(node): 
-            raise ParameterError("node %s does not exist. The nodes are: %s. "%(str(node),self.get_nodes_names()))
+            raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
         return self.has_log_conditional_probability_variable(self.variable_name_from_node(node)) 
 
-    def has_sample_conditional_probability_node(self,node): 
+    def can_sample_conditional_probability_node(self,node): 
         """Returns True if a method to sample from the conditional probability of the given node is defined. """ 
         if not self.has_node(node): 
-            raise ParameterError("Variable %s does not exist. The nodes are: %s. "%(str(node),self.get_nodes_names()))
-        return self.has_sample_conditional_probability_variable(self.variable_name_from_node(node)) 
+            raise ParameterError("Variable '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
+        return self.can_sample_conditional_probability_variable(self.variable_name_from_node(node)) 
         
     def get_log_conditional_probability_gradient_node(self,node): 
         """Returns the gradient of the log of the conditional probability distribution 
@@ -363,7 +370,7 @@ class Dependence():
         variable_name = sefl.get_variable_name_from_node(node) 
         return self.get_log_conditional_probability_variable(self,variable_name)
         
-    def sample_node(self,node):
+    def sample_conditional_probability_node(self,node):
         """Sample from the given node - if possible). """
         # get the name of the variable (node container) attached to the given node (if any). 
         variable_name = sefl.get_variable_name_from_node(node) 
@@ -409,6 +416,8 @@ class Node():
 
     def get_value(self):
         """Returns the value associated to the node. """
+        if not hasattr(self,'value'): 
+            raise NotInitialized("The value of node '%s' has not been initialized. "%name(self))
         return self.value
         
     def get_name(self):
@@ -429,7 +438,44 @@ class Node():
         """Return an array of zeros of the same size and shape as the value of the node. """
         return numpy.zeros(self.value.shape)
 
+    def has_log_conditional_probability_gradient(self): 
+        """Returns True if a method to compute the gradient of the log of the conditional 
+        probability distribution is defined. """
+        for dependence in self.get_dependencies_attached(): 
+           if not dependence.self.has_log_conditional_probability_gradient_node(self): 
+               return False
+        return True 
+       
+    def has_log_conditional_probability_hessian(self): 
+        """Returns True if a method to compute the Hessian of the log of the conditional 
+        probability distribution is defined. """
+        for dependence in self.get_dependencies_attached(): 
+           if not dependence.self.has_log_conditional_probability_hessian_node(self): 
+               return False
+        return True 
 
+    def has_log_conditional_probability_diagonal_hessian(self): 
+        """Returns True if a method to compute the diagonal of the Hessian of the log of the conditional 
+        probability distribution is defined. """
+        for dependence in self.get_dependencies_attached(): 
+           if not dependence.self.has_log_conditional_probability_diagonal_hessian_node(self): 
+               return False
+        return True 
+        
+    def has_log_conditional_probability(self): 
+        """Returns True if a method to compute the log of the conditional probability distribution is defined. """
+        for dependence in self.get_dependencies_attached(): 
+           if not dependence.self.has_log_conditional_probability_node(self): 
+               return False
+        return True 
+
+    def can_sample_conditional_probability(self): 
+        """Returns True if a method to sample from the conditional probability is defined. """ 
+        for dependence in self.get_dependencies_attached(): 
+           if not dependence.self.can_sample_conditional_probability_node(self): 
+               return False
+        return True 
+        
 
         
 class ProbabilisticGraphicalModel():
@@ -447,14 +493,14 @@ class ProbabilisticGraphicalModel():
         "Add single node to the Probabilistic Graphical Model. Optionally specify value and given flag" 
         # check parameter type:  
         if not (isinstance(node,Node) or isinstance(node,str)):
-            raise UnexpectedParameterType("node %s is not an instance of Node or a string identifying the name of a new node"%str(node)) 
+            raise UnexpectedParameterType("node '%s' is not an instance of Node or a string identifying the name of a new node"%name(node)) 
         # check if node is already in the dag
         if isinstance(node,str): 
             name = node
         else: 
             name = node.name
         if self.has_node(node) or self.has_node(name): 
-            raise ParameterError("The graphical model already has the given node (node name: %s) "%str(name))
+            raise ParameterError("The graphical model already has the given node (node name: '%s') "%str(name))
         # modify the node value and flag if specified: 
         if isinstance(node,Node): 
             if value != None:
@@ -474,7 +520,7 @@ class ProbabilisticGraphicalModel():
             list_of_nodes = [list_of_nodes,]
         for node in list_of_nodes: 
             if not (isinstance(node,Node) or isinstance(node,str)): 
-                raise UnexpectedParameterType("node % is not an instance of Node or a string identifying the name of a new node. "%str(node))            
+                raise UnexpectedParameterType("node % is not an instance of Node or a string identifying the name of a new node. "%name(node))            
         names = [] 
         # verify if the given names are unique
         for node in list_of_nodes: 
@@ -495,7 +541,7 @@ class ProbabilisticGraphicalModel():
                 name = node.name
             # check if node with same name exists
             if self.has_node(node) or self.has_node(name): 
-                raise ParameterError("The graphical model already has the given node (node name: %s) "%str(name))
+                raise ParameterError("The graphical model already has the given node (node name: '%s') "%str(name))
         # add the nodes to the graph
         for node in list_of_nodes: 
             self.add_node(node)
@@ -504,7 +550,7 @@ class ProbabilisticGraphicalModel():
     def get_node(self,name): 
         """Returns the node with given name. """
         if not self.has_node(name): 
-            raise ParameterError("Node with name %s does not exist. "%name)
+            raise ParameterError("Node with name '%s' does not exist. "%name)
         return self.nodes[name]
         
     def get_nodes(self): 
@@ -607,7 +653,7 @@ class ProbabilisticGraphicalModel():
                 raise UnexpectedParameterType("links must be a dictionary") 
         # check if the dependence has been already added to the graph  
         if self.has_dependence(dependence): 
-            raise ParameterError("The graphical model already has the dependence %s. "%str(dependence.get_name()))
+            raise ParameterError("The graphical model already has the dependence '%s'. "%str(dependence.get_name()))
         # add the dependence 
         self.dependencies[dependence.get_name()] = dependence 
         # optionally attach dependence
@@ -622,14 +668,14 @@ class ProbabilisticGraphicalModel():
         else: 
             name = dependence  
         if not self.has_dependence(dependence): 
-            raise ParameterError ("The dependence %s is not attached to the Probabilistic Graphical Model. "+name)      
+            raise ParameterError ("The dependence '%s' is not attached to the Probabilistic Graphical Model. "+name)      
         #FIXME: tell the nodes and tell the dependence (returned by the current function, though detached)  
         return self.dependencies.pop(name)
         
     def get_dependence(self,name): 
         """Returns the dependence with given name. """
         if not self.has_dependence(name): 
-            raise ParameterError("Dependence with name %s does not exist. "%name)
+            raise ParameterError("Dependence with name '%s' does not exist. "%name)
         return self.dependencies[name]
 
     def get_dependencies(self): 
@@ -725,7 +771,7 @@ class ProbabilisticGraphicalModel():
         log_p = 0 
         for dependence in self.get_node_dependencies(node): 
             if not self.dependence.has_log_conditional_probability_node(node): 
-                raise UndefinedModelProperty("Dependence %s does not have a method to compute the log probability of the conditional probability of %s ( -> %s). "%(dependence.get_name(),node.get_name(),dependence.get_variable_name_from_node(node)))
+                raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
             log_p += dependence.get_log_conditional_probability(node)
         return log_p
@@ -736,7 +782,7 @@ class ProbabilisticGraphicalModel():
         gradient = node.zeros() 
         for dependence in self.get_node_dependencies(node): 
             if not self.dependence.has_log_conditional_probability_gradient_node(node): 
-                raise UndefinedModelProperty("Dependence %s does not have a method to compute the gradient of the log probability of the conditional probability of %s ( -> %s). "%(dependence.get_name(),node.get_name(),dependence.get_variable_name_from_node(node)))
+                raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the gradient of the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
             gradient += dependence.get_log_conditional_probability_gradient(node)
         return gradient 
@@ -747,7 +793,7 @@ class ProbabilisticGraphicalModel():
         hessian = node.zeros() 
         for dependence in self.get_node_dependencies(node): 
             if not self.dependence.has_log_conditional_probability_hessian_node(node): 
-                raise UndefinedModelProperty("Dependence %s does not have a method to compute the Hessian of the log probability of the conditional probability of %s ( -> %s). "%(dependence.get_name(),node.get_name(),dependence.get_variable_name_from_node(node)))
+                raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the Hessian of the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
             hessian += dependence.get_log_conditional_probability_hessian(node)
         return hessian 
@@ -758,12 +804,15 @@ class ProbabilisticGraphicalModel():
         diaghessian = node.zeros() 
         for dependence in self.get_node_dependencies(node): 
             if not self.dependence.has_log_conditional_probability_diagonal_hessian_node(node): 
-                raise UndefinedModelProperty("Dependence %s does not have a method to compute the diagonal of the Hessian of the log probability of the conditional probability of %s ( -> %s). "%(dependence.get_name(),node.get_name(),dependence.get_variable_name_from_node(node)))
+                raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the diagonal of the Hessian of the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
             diaghessian += dependence.get_log_conditional_probability_diagonal_hessian(node)
         return diaghessian 
 
-
+    def sample_conditional_probability_node(self,node): 
+        return 0 #FIXME: implement direct sampling - just has to call the function at the node (only if the node has just one parent)
+        # also fix self.can_sample_conditional_probability_node() so that it returns True only if the node has only one parent 
+        
     # Export graph    
     def export_dictionary(self): 
         """Export a dictionary that describes the graph. """
@@ -805,8 +854,11 @@ class ProbabilisticGraphicalModel():
 
     # Visualisation 
     def webdisplay(self,background=True): 
-        #try: 
+        """Displays the graph in a web browser. """
         from webgui.QuickDisplay import display_graph
-        display_graph(self,background)
+        display_graph(self,background) 
 
-
+    def _repr_html_(self): 
+        from webgui.QuickDisplay import graph_ipython_notebook 
+        return graph_ipython_notebook(self) 
+ 
