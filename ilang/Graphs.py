@@ -1,15 +1,18 @@
 
-# ilang - Inference Language 
+# ilang - Inference Language  
 # Stefano Pedemonte
 # Aalto University, School of Science, Helsinki
-# Oct 2013, Helsinki 
+# 20 Oct 2013, Helsinki 
+# Harvard University, Martinos Center for Biomedical Imaging
+# Dec 2013, Boston, MA, USA 
 
 
 __all__ = ['Node','Dependence','ProbabilisticGraphicalModel']
 
 from ilang.exceptions import *
-from ilang.verbose import *  
+from ilang.verbose import * 
 import numpy
+from DisplayNode import DisplayNode 
         
 data_types = ['continuous','discrete']
 
@@ -51,7 +54,7 @@ class NodeContainer():
     def get_name(self): 
         """Returns the name of the node container. This is defined in the Dependence object 
         of which the node container is part. (see Dependence - expecially the method 
-        variables() ). """
+        get_variables() ). """
         return self.name
     
     def has_attached_node(self): 
@@ -88,7 +91,7 @@ class NodeContainer():
 
     def __attach_to_node(self,node): 
         if self.has_attached_node(): 
-            print_important("Detaching node container from node '%s' and attaching to node '%s'. "%(repr(self.attached_node),repr(node)) )
+            print_important("Detaching node container from node '%s' and attaching to node '%s'. \n"%(repr(self.attached_node),repr(node)) )
         self.attached_node = node
 
     def detach_from_node(self): 
@@ -98,13 +101,14 @@ class NodeContainer():
 
 
 
-class Dependence(): 
+class Dependence(object): 
     def __init__(self,name): 
+        self._define_instance_methods()     
         self.nodes_containers = []  
         self._make_nodes_containers() 
         self.init() 
         self.name = name
-    
+        
     def _make_nodes_containers(self): 
         """Instantiate a node container for each variable. """
         for variable_name in self.get_variables_names(): 
@@ -116,21 +120,33 @@ class Dependence():
         after the instantiation of the Dependence object, enabling the insertion of 
         initialization code. """
         return True 
-        
-    def dependencies(self): 
-        """Subclass this method to define a new dependence. This method must return a 
-        dictionary describing the dependencies between variables. """
-        return [] 
-        
-    def variables(self): 
-        """Subclass this method to define a new dependence. This method must return a 
-        dictionary of the variables involved in the dependence object. """
-        return {} 
+      
+    @classmethod
+    def get_dependencies(cls): 
+        """Returns a dictionary describing the dependencies between variables. """
+        return cls.dependencies
 
+    @classmethod
+    def get_variables(cls): 
+        """Returns a dictionary of the variables involved in the dependence object. """
+        return cls.variables
+
+    @classmethod
+    def get_name(cls): 
+        """Returns the name of the dependence. """
+        if hasattr(cls,"name"): 
+            return cls.name    
+        elif hasattr(cls,"__name__"): 
+            return cls.__name__
+        elif hasattr(cls,"__class__"): 
+            return cls.__class__.__name__ 
+        else: 
+            raise Exception("Something went wrong. This exception should never occur. ") 
+        
     def attach_to_nodes(self,links): 
         """Attach the dependence object to the nodes of a ProbabilisticGraphicalModel. """
         for variable_name in links.keys(): 
-            if not self.has_variable_named(variable_name): 
+            if not self.has_variable(variable_name): 
                 raise ParameterError("Dependence does not have a variable with name '%s'. (The variables are %s). "%(variable_name,self.get_variables_names()))
             if not isinstance(links[variable_name], Node): 
                 raise UnexpectedParameterType("Expected an instance of Node. ")
@@ -148,7 +164,7 @@ class Dependence():
       
     def get_node_container(self,variable_name): 
         """Returns the node container corresponding to the variable with the given name. """
-        if not self.has_variable_named(variable_name): 
+        if not self.has_variable(variable_name): 
             raise InconsistentGraph("The requested variable (%s) does not exist. The variables are %s."%(variable_name,self.get_variables_names())) 
         for nodeph in self.get_nodes_containers(): 
             if nodeph.name == variable_name: 
@@ -156,7 +172,7 @@ class Dependence():
          
     def get_node_from_variable_name(self,variable_name): 
         """Returns the node attached to the given variable. """
-        if not self.has_variable_named(variable_name): 
+        if not self.has_variable(variable_name): 
             raise ParameterError("The requested variable (%s) does not exist. The variables are %s."%(variable_name,self.get_variables_names()))
         node_container = self.get_node_container(variable_name)
         if not node_container.has_attached_node(): 
@@ -169,18 +185,14 @@ class Dependence():
             if isinstance(node,Node): 
                 if container.get_attached_node() == node: 
                     return container.get_name() 
-            elif isinstance(node,'str'): 
+            elif isinstance(node,str): 
                 if container.get_attached_node().name == node: 
                     return container.get_name() 
         raise ParameterError("node '%s' is not attached to any of the node containers. "%name(node)) 
         
-    def has_variable_named(self,variable_name): 
-        """Returns True if one of the variables of the dependence object has the given name. """
-        return variable_name in self.variables().keys()
-        
     def get_variables_names(self): 
         """Returns a list of the names of all the variables. """
-        return self.variables().keys()
+        return self.get_variables().keys()
 
     def get_attached_nodes(self): 
         """Returns a list of the nodes attached to the node containers. """
@@ -212,7 +224,7 @@ class Dependence():
             if isinstance(node,Node): 
                 if container.get_attached_node() == node: 
                     return True
-            elif isinstance(node,'str'): 
+            elif isinstance(node,str): 
                 if container.get_attached_node().name == node: 
                     return True 
         return False 
@@ -220,14 +232,9 @@ class Dependence():
     def set_name(self,name): 
         """Sets the name of the dependence object. """
         self.name = name
-        
-    def get_name(self): 
-        """Returns the name of the dependence object. """
-        return self.name
 
         
     # private
-
     def has_log_conditional_probability_gradient_variable(self,variable): 
         """Returns True if a method to compute the gradient of the log of the conditional 
         probability distribution associated to the given variable is defined. """
@@ -261,42 +268,50 @@ class Dependence():
         if not self.has_variable(variable): 
             raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         return hasattr(self,"sample_conditional_probability_"+variable)
-           
-    def get_log_conditional_probability_gradient_variable(self,variable): 
-        """Returns the gradient of the log of the conditional probability distribution 
-        associated to the given variable. """
-        if not self.has_variable(variable): 
-            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
-        if not hasattr(self,"log_conditional_probability_gradient_"+variable): 
-            raise ModelUndefined("The method to compute the gradient of the log conditional probability of '%s' is not defined. "%variable) 
-        return eval("log_conditional_probability_gradient_"+variable+"()") #FIXME: eventually pass parameters
 
-    def get_log_conditional_probability_hessian_variable(self,variable): 
-        """Returns the Hessian of the log of the conditional probability distribution 
-        associated to the given variable. """
-        if not self.has_variable(variable): 
-            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
-        if not hasattr(self,"log_conditional_probability_hessian_"+variable): 
-            raise ModelUndefined("The method to compute the Hessian of the log conditional probability of '%s' is not defined. "%variable) 
-        return eval("log_conditional_probability_hessian_"+variable+"()") #FIXME: eventually pass parameters
-       
-    def get_log_conditional_probability_hessian_variable(self,variable): 
-        """Returns the diagonal of the Hessian of the log of the conditional probability distribution 
-        associated to the given variable. """
-        if not self.has_variable(variable): 
-            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
-        if not hasattr(self,"log_conditional_probability_diagonal_hessian_"+variable): 
-            raise ModelUndefined("The method to compute the diagonal of the Hessian of the log conditional probability of '%s' is not defined. "%variable) 
-        return eval("log_conditional_probability_diagonal_hessian_"+variable+"()") #FIXME: eventually pass parameters
-              
-    def get_log_conditional_probability_variable(self,variable): 
+    def get_log_conditional_probability_variable(self,variable,value=None): 
         """Returns the log of the conditional probability distribution 
         associated to the given variable. """
         if not self.has_variable(variable): 
             raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"log_conditional_probability_"+variable): 
             raise ModelUndefined("The method to compute the log conditional probability of '%s' is not defined. "%variable) 
-        return eval("log_conditional_probability_"+variable+"()") #FIXME: eventually pass parameters
+        if value is None: 
+            value = self.get_value(variable)
+        return eval("self.log_conditional_probability_"+variable+"(value)") #FIXME: eventually pass parameters
+
+    def get_log_conditional_probability_gradient_variable(self,variable,value=None): 
+        """Returns the gradient of the log of the conditional probability distribution 
+        associated to the given variable. """
+        if not self.has_variable(variable): 
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+        if not hasattr(self,"log_conditional_probability_gradient_"+variable): 
+            raise ModelUndefined("The method to compute the gradient of the log conditional probability of '%s' is not defined. "%variable) 
+        if value is None: 
+            value = self.get_value(variable)
+        return eval("self.log_conditional_probability_gradient_"+variable+"(value)") #FIXME: eventually pass parameters
+
+    def get_log_conditional_probability_hessian_variable(self,variable,value=None): 
+        """Returns the Hessian of the log of the conditional probability distribution 
+        associated to the given variable. """
+        if not self.has_variable(variable): 
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+        if not hasattr(self,"log_conditional_probability_hessian_"+variable): 
+            raise ModelUndefined("The method to compute the Hessian of the log conditional probability of '%s' is not defined. "%variable) 
+        if value is None: 
+            value = self.get_value(variable)
+        return eval("self.log_conditional_probability_hessian_"+variable+"(value)") #FIXME: eventually pass parameters
+       
+    def get_log_conditional_probability_diagonal_hessian_variable(self,variable,value=None): 
+        """Returns the diagonal of the Hessian of the log of the conditional probability distribution 
+        associated to the given variable. """
+        if not self.has_variable(variable): 
+            raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
+        if not hasattr(self,"log_conditional_probability_hessian_"+variable): 
+            raise ModelUndefined("The method to compute the diagonal Hessian of the log conditional probability of '%s' is not defined. "%variable) 
+        if value is None: 
+            value = self.get_value(variable)
+        return eval("self.log_conditional_probability_diagonal_hessian_"+variable+"(value)") #FIXME: eventually pass parameters
         
     def sample_conditional_probability_variable(self,variable): 
         """Samples from the conditional probability distribution of the given variable. """
@@ -304,90 +319,248 @@ class Dependence():
             raise ParameterError("Variable '%s' does not exist. The variables are: %s. "%(variable,self.get_variables_names()))
         if not hasattr(self,"sample_conditional_probability_"+variable): 
             raise ModelUndefined("The method to sample from the log conditional probability of '%s' is not defined. "%variable) 
-        return eval("sample_conditional_probability_"+variable+"()") #FIXME: eventually pass parameters
+        return eval("self.sample_conditional_probability_"+variable+"()") #FIXME: eventually pass parameters
         
-
+    def has_variable(self,variable): 
+        return variable in self.variables.keys() 
+        
+    def get_value(self,variable):
+        node = self.get_node_from_variable_name(variable)
+        return node.get_value()
+        
     # Inference interface 
     def has_log_conditional_probability_gradient_node(self,node): 
         """Returns True if a method to compute the gradient of the log of the conditional 
         probability distribution associated to the given node is defined. """
         if not self.has_node(node): 
             raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))        
-        return self.has_log_conditional_probability_gradient_variable(self.variable_name_from_node(node)) 
+        return self.has_log_conditional_probability_gradient_variable(self.get_variable_name_from_node(node)) 
        
     def has_log_conditional_probability_hessian_node(self,node): 
         """Returns True if a method to compute the Hessian of the log of the conditional 
         probability distribution associated to the given node is defined. """
         if not self.has_node(node): 
             raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
-        return self.has_log_conditional_probability_hessian_variable(self.variable_name_from_node(node)) 
+        return self.has_log_conditional_probability_hessian_variable(self.get_variable_name_from_node(node)) 
 
     def has_log_conditional_probability_diagonal_hessian_node(self,node): 
         """Returns True if a method to compute the diagonal of the Hessian of the log of the conditional 
         probability distribution associated to the given node is defined. """
         if not self.has_node(node): 
             raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
-        return self.has_log_conditional_probability_diagonal_hessian_variable(self.variable_name_from_node(node)) 
+        return self.has_log_conditional_probability_diagonal_hessian_variable(self.get_variable_name_from_node(node)) 
         
     def has_log_conditional_probability_node(self,node): 
         """Returns True if a method to compute the log of the conditional probability distribution 
         associated to the given node is defined. """
         if not self.has_node(node): 
             raise ParameterError("node '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
-        return self.has_log_conditional_probability_variable(self.variable_name_from_node(node)) 
+        return self.has_log_conditional_probability_variable(self.get_variable_name_from_node(node)) 
 
     def can_sample_conditional_probability_node(self,node): 
         """Returns True if a method to sample from the conditional probability of the given node is defined. """ 
         if not self.has_node(node): 
             raise ParameterError("Variable '%s' does not exist. The nodes are: %s. "%(name(node),self.get_nodes_names()))
-        return self.can_sample_conditional_probability_variable(self.variable_name_from_node(node)) 
-        
-    def get_log_conditional_probability_gradient_node(self,node): 
-        """Returns the gradient of the log of the conditional probability distribution 
-        associated to the given node (given by name or instance) - if possible. """
-        # get the name of the variable (node container) attached to the given node (if any). 
-        variable_name = sefl.get_variable_name_from_node(node) 
-        return self.get_log_conditional_probability_gradient_variable(self,variable_name)
+        if self.can_sample_conditional_probability_variable(self.get_variable_name_from_node(node)):  
+            return True
+        return False 
 
-    def get_log_conditional_probability_hessian_node(self,node): 
-        """Returns the Hessian of the log of the conditional probability distribution 
-        associated to the given node (given by name or instance) - if possible. """
-        # get the name of the variable (node container) attached to the given node (if any). 
-        variable_name = sefl.get_variable_name_from_node(node) 
-        return self.get_log_conditional_probability_hessian_variable(self,variable_name)
-
-    def get_log_conditional_probability_diagonal_hessian_node(self,node): 
-        """Returns the diagonal of the Hessian of the log of the conditional probability distribution 
-        associated to the given node (given by name or instance) - if possible. """
-        # get the name of the variable (node container) attached to the given node (if any). 
-        variable_name = sefl.get_variable_name_from_node(node) 
-        return self.get_log_conditional_probability_diagonal_hessian_variable(self,variable_name)
-                   
-    def get_log_conditional_probability_node(self,node): 
+    def get_log_conditional_probability_node(self,node,value=None): 
         """Returns the log of the conditional probability distribution 
         associated to the given node (given by name or instance) - if possible. . """
         # get the name of the variable (node container) attached to the given node (if any). 
-        variable_name = sefl.get_variable_name_from_node(node) 
-        return self.get_log_conditional_probability_variable(self,variable_name)
+        variable_name = self.get_variable_name_from_node(node) 
+        return self.get_log_conditional_probability_variable(variable_name,value)
+
+    def get_log_conditional_probability_gradient_node(self,node,value=None): 
+        """Returns the gradient of the log of the conditional probability distribution 
+        associated to the given node (given by name or instance) - if possible. """
+        # get the name of the variable (node container) attached to the given node (if any). 
+        variable_name = self.get_variable_name_from_node(node) 
+        return self.get_log_conditional_probability_gradient_variable(variable_name,value)
+
+    def get_log_conditional_probability_hessian_node(self,node,value=None): 
+        """Returns the Hessian of the log of the conditional probability distribution 
+        associated to the given node (given by name or instance) - if possible. """
+        # get the name of the variable (node container) attached to the given node (if any). 
+        variable_name = self.get_variable_name_from_node(node) 
+        return self.get_log_conditional_probability_hessian_variable(variable_name,value)
+
+    def get_log_conditional_probability_diagonal_hessian_node(self,node,value=None): 
+        """Returns the diagonal of the Hessian of the log of the conditional probability distribution 
+        associated to the given node (given by name or instance) - if possible. """
+        # get the name of the variable (node container) attached to the given node (if any). 
+        variable_name = self.get_variable_name_from_node(node) 
+        return self.get_log_conditional_probability_diagonal_hessian_variable(variable_name,value)
         
     def sample_conditional_probability_node(self,node):
         """Sample from the given node - if possible). """
         # get the name of the variable (node container) attached to the given node (if any). 
-        variable_name = sefl.get_variable_name_from_node(node) 
-        return self.sample_variable(self,variable_name)
+        variable_name = self.get_variable_name_from_node(node) 
+        return self.sample_conditional_probability_variable(variable_name)
+
+    def has_node(self,node): 
+        for container in self.get_nodes_containers(): 
+            if isinstance(node,Node): 
+                if container.get_attached_node() == node: 
+                    return True
+            elif isinstance(node,str): 
+                if container.get_attached_node().name == node: 
+                    return True
+        return False 
+                    
+    @classmethod
+    def export_pickle(cls): 
+        """Export a pickled representation of the graph. """
+        from pickle import dumps
+        return dumps(cls.export_dictionary())
+ 
+    @classmethod
+    def export_json(cls): 
+        """Export a json representation of the graph. """
+        from json import dumps
+        return dumps(cls.export_dictionary())
 
 
+    # Export graph  
+    @classmethod
+    def export_dictionary(cls): 
+        """Export a dictionary that describes the conditional independencies. """
+        graph = {}
+        vars = cls.get_variables()
+        deps = cls.get_dependencies() 
+        # list the nodes 
+        nodes = []
+        for var_name in vars.keys(): 
+            if vars[var_name] == 'continuous': 
+                node_type = 4
+            else: 
+                node_type = 5
+            nodes.append({'name':var_name,'type':node_type})
+        graph['nodes'] = nodes
+        # list the dependencies 
+        links = []
+        for dep in deps: 
+                link_source = dep[0]
+                link_target = dep[1]
+                if dep[2] == 'directed': 
+                    link_type = 't1'
+                else: 
+                    link_type = 't2'
+                links.append({'source':link_source,'target':link_target,'type':link_type}) 
+        graph['links'] = links
+        return graph
 
+    # Visualisation 
+    @classmethod
+    def display_in_browser(cls): 
+        """Displays the graph in a web browser. """
+        display_node = DisplayNode()
+        display_node.display_in_browser('graph',cls.export_dictionary()) 
 
+    # Note: as of Dec. 2013, IPython does not find _repr_html_ if it is a class method, therefore use .display() to display 
+    # the graph of a model derived from Dependence: e.g. (in Ipython): 
+    # from Model import MultivariateGaussian
+    # MultivariateGaussian.display() 
+    @classmethod
+    def _repr_html_(cls): 
+        display_node = DisplayNode()
+        return display_node.display('graph',cls.export_dictionary())._repr_html_()
+        
+    # Note: as of Dec. 2013, IPython does not find _repr_html_ if it is a class method, therefore use .display() to display 
+    # the graph of a model derived from Dependence: e.g. (in Ipython): 
+    # from Model import MultivariateGaussian
+    # MultivariateGaussian.display() 
+    @classmethod
+    def display(cls): 
+        display_node = DisplayNode()
+        return display_node.display('graph',cls.export_dictionary())
+                
+    def _define_instance_methods(self): 
+        def get_dependencies(): 
+            """Returns a dictionary describing the dependencies between variables. """
+            return self.dependencies
+        setattr(self,'get_dependencies',get_dependencies)
+        
+        def get_variables(): 
+            """Returns a dictionary of the variables involved in the dependence object. """
+            return self.variables    
+        setattr(self,'get_variables',get_variables)
+
+        def get_name(): 
+            if hasattr(self,"name"): 
+                return self.name    
+            elif hasattr(self,"__name__"): 
+                return self.__name__
+            elif hasattr(self,"__class__"): 
+                return self.__class__.__name__ 
+            else: 
+                raise Exception("Something went wrong. This exception should never occur. ") 
+        setattr(self,'get_name',get_name)
+        
+        def export_dictionary(): 
+            """Export a dictionary that describes the conditional independencies. """
+            graph = {}
+            vars = self.get_variables()
+            deps = self.get_dependencies() 
+            # list the nodes 
+            nodes = []
+            for var_name in vars.keys(): 
+                if vars[var_name] == 'continuous': 
+                    node_type = 4
+                else: 
+                    node_type = 5
+                nodes.append({'name':var_name,'type':node_type})
+            graph['nodes'] = nodes
+            # list the dependencies 
+            links = []
+            for dep in deps: 
+                    link_source = dep[0]
+                    link_target = dep[1]
+                    if dep[2] == 'directed': 
+                        link_type = 't1'
+                    else: 
+                        link_type = 't2'
+                    links.append({'source':link_source,'target':link_target,'type':link_type}) 
+            graph['links'] = links
+            return graph
+        setattr(self,'export_dictionary',export_dictionary)
+        
+        def export_pickle(): 
+            """Export a pickled representation of the graph. """
+            from pickle import dumps
+            return dumps(self.export_dictionary())
+        setattr(self,'export_pickle',export_pickle)
+         
+        def export_json(): 
+            """Export a json representation of the graph. """
+            from json import dumps
+            return dumps(self.export_dictionary())
+        setattr(self,'export_json',export_json)
+        
+        def display_in_browser(): 
+            """Displays the graph in a web browser. """
+            display_node = DisplayNode()
+            display_node.display_in_browser('graph',self.export_dictionary()) 
+        setattr(self,'display_in_browser',display_in_browser)
+        
+        def _repr_html_(cls): 
+            display_node = DisplayNode()
+            return display_node.display('graph',cls.export_dictionary())._repr_html_()
+        setattr(self.__class__,'_repr_html_',_repr_html_)
+
+        
+
+        
+            
 class Node(): 
     """Node of a graphical model. A node represents a variable or set of variables. 
     The node is characterized by name, value, and by the given flag. The flag is True if 
     the variable is considered a given quantity, False if it considered unknown (uncertain). """
     def __init__(self,name,value=None,given=False): 
         self.name = name
-        if not value == None: 
-            self.value = value
-        self.given = given
+        self.value = value
+        self.given = bool(given)
         self.dependencies_attached = []
         self.data_type = None
         
@@ -402,11 +575,24 @@ class Node():
         
     def set_value(self,value):
         """Sets the value associated to the node. The value must be an instance of numpy.ndarray"""
-        try: 
-            value = numpy.asarray(value)
-        except: 
-            raise UnexpectedParameterType("'value' is expected to be an instance of numpy.ndarray") 
+        if not (isinstance(value,numpy.ndarray) or numpy.isscalar(value)):  
+            try: 
+                value = numpy.asarray(value)
+            except: 
+                raise UnexpectedParameterType("'value' is expected to be an instance of numpy.ndarray") 
         self.value = value
+#        # set value, but maintain the object in the same memory location, so that all memory references remain valid 
+#        print "@@ Setting value: ",self.name, value
+#        if self.value is None: 
+#            if numpy.isscalar(value):
+#                self.value = numpy.asarray(value)
+#            else: 
+#                self.value = value
+#        else: 
+#            if numpy.isscalar(value): 
+#                self.value.data = numpy.asarray(value).data
+#            else: 
+#                self.value[:] = value
         return True
         
     def set_name(self,name): 
@@ -416,8 +602,6 @@ class Node():
 
     def get_value(self):
         """Returns the value associated to the node. """
-        if not hasattr(self,'value'): 
-            raise NotInitialized("The value of node '%s' has not been initialized. "%name(self))
         return self.value
         
     def get_name(self):
@@ -437,6 +621,10 @@ class Node():
     def zeros(self): 
         """Return an array of zeros of the same size and shape as the value of the node. """
         return numpy.zeros(self.value.shape)
+
+    def zeros_hessian(self):
+        """Return a square matrix of zeros, with number of rows equal to the length of the value of the node. """
+        return numpy.zeros((self.value.size,self.value.size))
 
     def has_log_conditional_probability_gradient(self): 
         """Returns True if a method to compute the gradient of the log of the conditional 
@@ -472,7 +660,7 @@ class Node():
     def can_sample_conditional_probability(self): 
         """Returns True if a method to sample from the conditional probability is defined. """ 
         for dependence in self.get_dependencies_attached(): 
-           if not dependence.self.can_sample_conditional_probability_node(self): 
+           if not dependence.can_sample_conditional_probability_node(): 
                return False
         return True 
         
@@ -503,9 +691,9 @@ class ProbabilisticGraphicalModel():
             raise ParameterError("The graphical model already has the given node (node name: '%s') "%str(name))
         # modify the node value and flag if specified: 
         if isinstance(node,Node): 
-            if value != None:
+            if value  is not None:
                 node.set_value(value)
-            if given != None: 
+            if given  is not None: 
                 node.set_given(given)
         else: 
             node = Node(name,value,given)
@@ -547,11 +735,14 @@ class ProbabilisticGraphicalModel():
             self.add_node(node)
         return True
  
-    def get_node(self,name): 
+    def get_node(self,node): 
         """Returns the node with given name. """
-        if not self.has_node(name): 
-            raise ParameterError("Node with name '%s' does not exist. "%name)
-        return self.nodes[name]
+        if not self.has_node(node): 
+            raise ParameterError("Node with name '%s' does not exist. "%name(node))
+        if isinstance(node,Node): 
+            return node
+        else: 
+            return self.nodes[node]
         
     def get_nodes(self): 
         """Returns a list of all nodes. """
@@ -638,6 +829,8 @@ class ProbabilisticGraphicalModel():
             raise ParameterError ("Probabilistic Graphical Model does not have a node named "+str(name))      
         return self.nodes.pop(name)
 
+    def list_nodes(self): 
+        return self.nodes.keys() 
 
         
     # Handling of dependencies
@@ -648,7 +841,7 @@ class ProbabilisticGraphicalModel():
         # check for correct parameter type
         if not isinstance(dependence,Dependence): 
             raise UnexpectedParameterType("dependence must be an instance of Dependence")
-        if links != None:
+        if links  is not None:
             if not isinstance(links, type({})):
                 raise UnexpectedParameterType("links must be a dictionary") 
         # check if the dependence has been already added to the graph  
@@ -657,7 +850,7 @@ class ProbabilisticGraphicalModel():
         # add the dependence 
         self.dependencies[dependence.get_name()] = dependence 
         # optionally attach dependence
-        if links != None: 
+        if links  is not None: 
             self.attach_dependence_to_nodes(dependence,links)
         return True
 
@@ -703,7 +896,7 @@ class ProbabilisticGraphicalModel():
             raise ParameterError("The specified dependence is not one of the dependencies of the graph. Add the dependence first: add_dependence()") 
         # verify that all the variables specified in the links dictionary exist
         for variable_name in links.keys(): 
-            if not dependence.has_variable_named(variable_name): 
+            if not dependence.has_variable(variable_name): 
                 raise ParameterError("One of the specified variables (%s) does not exist. The variables are %s. "%(variable_name,dependence.get_variables_names()))
         # verify that all the nodes specified in the links dictionary exist
         for node in links.values(): 
@@ -765,54 +958,70 @@ class ProbabilisticGraphicalModel():
 
 
     # Inference
-    def get_log_conditional_probability(node): 
+    def get_log_conditional_probability(self,node,value=None): 
         """Returns the log of the conditional probability of the given node. """
         # sum over the dependencies associated to the given node 
         log_p = 0 
         for dependence in self.get_node_dependencies(node): 
-            if not self.dependence.has_log_conditional_probability_node(node): 
+            if not dependence.has_log_conditional_probability_node(node): 
                 raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
-            log_p += dependence.get_log_conditional_probability(node)
+            log_p += dependence.get_log_conditional_probability_node(node,value)
         return log_p
 
-    def get_log_conditional_probability_gradient(node): 
+    def get_log_conditional_probability_gradient(self,node,value=None): 
         """Returns the gradient of the log of the conditional probability of the given node. """
         # sum over the dependencies associated to the given node 
+        node = self.get_node(node)
         gradient = node.zeros() 
+        print_debug("  summing over dependencies: ")
         for dependence in self.get_node_dependencies(node): 
-            if not self.dependence.has_log_conditional_probability_gradient_node(node): 
+            print_debug("  - dependence: %s"%name(dependence))
+            if not dependence.has_log_conditional_probability_gradient_node(node): 
                 raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the gradient of the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
-            gradient += dependence.get_log_conditional_probability_gradient(node)
+            gradient += (dependence.get_log_conditional_probability_gradient_node(node,value)).reshape(gradient.shape)
         return gradient 
         
-    def get_log_conditional_probability_hessian(node): 
+    def get_log_conditional_probability_hessian(self,node,value=None): 
         """Returns the Hessian of the log of the conditional probability of the given node. """
         # sum over the dependencies associated to the given node 
-        hessian = node.zeros() 
+        node = self.get_node(node)
+        hessian = node.zeros_hessian() 
         for dependence in self.get_node_dependencies(node): 
-            if not self.dependence.has_log_conditional_probability_hessian_node(node): 
+            if not dependence.has_log_conditional_probability_hessian_node(node): 
                 raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the Hessian of the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
-            hessian += dependence.get_log_conditional_probability_hessian(node)
+            hessian += (dependence.get_log_conditional_probability_hessian_node(node,value)).reshape(hessian.shape)
         return hessian 
 
-    def get_log_conditional_probability_diagonal_hessian(node): 
+    def get_log_conditional_probability_diagonal_hessian(self,node,value=None): 
         """Returns the Hessian of the log of the conditional probability of the given node. """
         # sum over the dependencies associated to the given node 
+        node = self.get_node(node)
         diaghessian = node.zeros() 
         for dependence in self.get_node_dependencies(node): 
-            if not self.dependence.has_log_conditional_probability_diagonal_hessian_node(node): 
+            if not dependence.has_log_conditional_probability_diagonal_hessian_node(node): 
                 raise UndefinedModelProperty("Dependence '%s' does not have a method to compute the diagonal of the Hessian of the log probability of the conditional probability of '%s' ( -> '%s'). "%(dependence.get_name(),name(node),dependence.get_variable_name_from_node(node)))
         for dependence in self.get_node_dependencies(node): 
-            diaghessian += dependence.get_log_conditional_probability_diagonal_hessian(node)
+            diaghessian += (dependence.get_log_conditional_probability_diagonal_hessian_node(node,value)).reshape(diaghessian.shape)
         return diaghessian 
 
+    def can_sample_conditional_probability_node(self,node): 
+        if len(self.get_node_dependencies(node)): 
+            dependence = self.get_node_dependencies(node)[0]
+            if dependence.can_sample_conditional_probability_node(node): 
+                return True 
+        return False 
+
     def sample_conditional_probability_node(self,node): 
-        return 0 #FIXME: implement direct sampling - just has to call the function at the node (only if the node has just one parent)
-        # also fix self.can_sample_conditional_probability_node() so that it returns True only if the node has only one parent 
-        
+        #direct sampling - just calls the function at the node (only if the node has just one parent)
+        #(self.can_sample_conditional_probability_node() returns True only if the node has only one parent) 
+        if not self.can_sample_conditional_probability_node(node): 
+            raise NoCompatibleSampler("Node '%s' cannot be sampled by direct sampling. "%(name(node)))
+        dependence = self.get_node_dependencies(node)[0]  #the list has length 1 if self.can_sample_conditional_probability_node() returns True
+        return dependence.sample_conditional_probability_node(node) 
+                
     # Export graph    
     def export_dictionary(self): 
         """Export a dictionary that describes the graph. """
@@ -829,7 +1038,7 @@ class ProbabilisticGraphicalModel():
         # walk through the dependence objects and list all the (inner) dependencies 
         links = []
         for dependence in self.get_dependencies(): 
-            dependencies = dependence.dependencies() 
+            dependencies = dependence.get_dependencies() 
             for link in dependencies: 
                 if link[2] == 'directed': 
                     link_type = 't1'
@@ -853,12 +1062,14 @@ class ProbabilisticGraphicalModel():
 
 
     # Visualisation 
-    def webdisplay(self,background=True): 
+    def display_in_browser(self):
         """Displays the graph in a web browser. """
-        from webgui.QuickDisplay import display_graph
-        display_graph(self,background) 
-
+        display_node = DisplayNode()
+        display_node.display_in_browser('graph',self.export_dictionary()) 
+     
     def _repr_html_(self): 
-        from webgui.QuickDisplay import graph_ipython_notebook 
-        return graph_ipython_notebook(self) 
+        display_node = DisplayNode()
+        return display_node.display('graph',self.export_dictionary())._repr_html_()
+
+ 
  

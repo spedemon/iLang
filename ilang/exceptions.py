@@ -36,3 +36,8 @@ class NoCompatibleSampler(Exception):
     def __str__(self):
         return repr("Not compatible sampler: "+str(self.value)) 
 
+class ModelUndefined(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+    def __str__(self):
+        return repr("Model method undefined: "+self.msg) 
