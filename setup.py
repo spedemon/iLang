@@ -11,7 +11,7 @@ from glob import glob
 
 setup(
     name='ilang',
-    version='0.1.0',
+    version='0.2.0',
     author='Stefano Pedemonte',
     author_email='stefano.pedemonte@gmail.com',
 	packages=['ilang', 'ilang.test','ilang.examples',],
@@ -19,11 +19,10 @@ setup(
     scripts=[],
     url='http://www.occiput.io',
     license='LICENSE.txt',
-    description='Imaging Inference Language.',
-    long_description=open('README.txt').read(),
+    description='Inference Language for Volumetric Imaging',
+    long_description=open('README.rst').read(),
     classifiers = [
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
         "Development Status :: 4 - Beta",
         "Environment :: Other Environment",
         "Intended Audience :: Science/Research",
@@ -36,7 +35,7 @@ setup(
     install_requires=[
         "numpy >= 1.6.0",
         "pil >= 1.0.0",
-        "DisplayNode >= 0.1.0", 
+        "DisplayNode >= 0.2.0", 
         "nibabel >= 1.3.0",
         "ipy_table >= 1.11.0", 
     ],
