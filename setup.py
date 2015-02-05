@@ -1,8 +1,9 @@
 
-# ilang - Inference Language 
+# iLang - Inference Language 
 # Stefano Pedemonte
 # Aalto University, School of Science, Helsinki
 # Oct 2013, Helsinki 
+# Martinos Center for Biomedical Imaging - MGH/Harvard University, Jan 2015
 
 
 from setuptools import setup
@@ -13,10 +14,10 @@ setup(
     version='0.1.0',
     author='Stefano Pedemonte',
     author_email='stefano.pedemonte@gmail.com',
-	packages=['ilang', 'ilang.tests','ilang.examples',],
-    test_suite="ilang.tests",
+	packages=['ilang', 'ilang.test','ilang.examples',],
+    test_suite="ilang.test",
     scripts=[],
-    url='http://niftyrec.scienceontheweb.net/',
+    url='http://www.occiput.io',
     license='LICENSE.txt',
     description='Imaging Inference Language.',
     long_description=open('README.txt').read(),
