@@ -11,7 +11,7 @@ from glob import glob
 
 setup(
     name='ilang',
-    version='0.2.1',
+    version='0.3.0',
     author='Stefano Pedemonte',
     author_email='stefano.pedemonte@gmail.com',
 	packages=['ilang', 'ilang.test','ilang.examples',],
@@ -35,7 +35,7 @@ setup(
     install_requires=[
         "numpy >= 1.6.0",
         "pil >= 1.0.0",
-        "DisplayNode >= 0.2.0", 
+        "DisplayNode >= 0.3.0", 
         "nibabel >= 2.0.0",
         "ipy_table >= 1.11.0", 
     ],

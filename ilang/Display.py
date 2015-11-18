@@ -17,10 +17,13 @@ except:
     has_pylab = False
 else: 
     has_pylab = True
-    pylab.ion()
+    #pylab.ion()
     from colorsys import hsv_to_rgb 
-    
-
+try:
+    import matplotlib.pyplot as plt
+    plt.ion()
+except: 
+    pass
 
 
 
