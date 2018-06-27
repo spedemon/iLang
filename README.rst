@@ -2,13 +2,10 @@
 iLang
 ======
 
-Inference language for volumetric imaging. 
-
-    #!/usr/bin/env python
-
-    from ilang import Graphs, Samplers, Tracers
-    # .. more documentation is required, see the examples in the /examples folder. 
-    # Look at how ilang is used in occiput.io
+Inference language for medical imaging. It provides an inference engine for computational tasks 
+such as reconstruction, registration, segmentation. 
+iLang enables the definition of Probabilistic Graphical Models that operate on imaging data and implements 
+optimizers and Bayesian samplers to perform inference (tomographic reconstruction, registration, segmentation). 
 
 
 Installation
@@ -55,7 +52,7 @@ Optimizers
 Website
 =======
 
-`ilang home page <http://www.occiput.io/>`_. 
+`ilang home page <http://tomographylab.scienceontheweb.net/software/ilang/>`_. 
 
 
 
